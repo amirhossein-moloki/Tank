@@ -1,6 +1,7 @@
 import pygame
 import torch
 import random
+import numpy as np
 from collections import deque
 from constants import *
 from game_objects import Tank, Wall, PowerUp
@@ -59,25 +60,33 @@ class GameSimulator:
         self.episode_count = 0
         self.next_powerup_spawn_time = 0
 
-        self._load_sounds()
+        self._create_sounds()
 
-    def _load_sounds(self):
+    def _create_sounds(self):
         self.sounds = {}
-        sound_files = {
-            'shoot': 'shoot.wav',
-            'explosion': 'explosion.wav',
-            'powerup': 'powerup.wav',
-            'shield_up': 'shield_up.wav',
-            'shield_hit': 'shield_hit.wav',
-            'wall_hit': 'wall_hit.wav'
-        }
-        for name, filename in sound_files.items():
-            try:
-                # Required files: assets/{filename}
-                self.sounds[name] = pygame.mixer.Sound(f"assets/{filename}")
-            except pygame.error:
-                print(f"Warning: Could not load assets/{filename}. Sound will be disabled.")
-                self.sounds[name] = None
+
+        def generate_beep(frequency, duration_ms, volume=0.1):
+            sample_rate = pygame.mixer.get_init()[0]
+            n_samples = int(round(duration_ms / 1000 * sample_rate))
+            buf = np.zeros((n_samples, 2), dtype=np.int16)
+            max_sample = 2**(16 - 1) - 1
+
+            amplitude = max_sample * volume
+
+            arr = np.array([amplitude * np.sin(2.0 * np.pi * frequency * x / sample_rate) for x in range(n_samples)])
+
+            buf[:, 0] = arr
+            buf[:, 1] = arr
+
+            return pygame.sndarray.make_sound(buf)
+
+        # Generate different sounds for different events
+        self.sounds['shoot'] = generate_beep(880, 50) # A5 note, short
+        self.sounds['explosion'] = generate_beep(220, 400) # A3 note, long
+        self.sounds['powerup'] = generate_beep(1320, 100) # E6 note, short and high
+        self.sounds['shield_up'] = generate_beep(660, 200) # E5 note
+        self.sounds['shield_hit'] = generate_beep(440, 150) # A4 note
+        self.sounds['wall_hit'] = generate_beep(330, 75) # E4 note, very short
 
     def _play_sound(self, name):
         if self.sounds.get(name):
