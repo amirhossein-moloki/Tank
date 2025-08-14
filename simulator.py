@@ -155,7 +155,7 @@ class GameSimulator:
                 if any(wall.rect.colliderect(check_rect) for wall in walls):
                     distances.append(dist)
                     break
-                dist += TILE_SIZE / 4
+                dist += self.tile_size / 4
             else:
                 distances.append(dist)
         return distances
