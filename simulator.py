@@ -29,6 +29,8 @@ class GameSimulator:
         self.current_map_layout = None
         self.tile_size = 0
         self.tank_size = 0
+        self.map_offset_x = 0
+        self.map_offset_y = 0
         self.select_new_map() # Select initial map
 
         # Create 4 agents for 2v2 gameplay
@@ -95,7 +97,21 @@ class GameSimulator:
 
     def select_new_map(self):
         self.current_map_layout = random.choice(self.maps)
-        self.tile_size = SCREEN_HEIGHT // len(self.current_map_layout)
+
+        map_rows = len(self.current_map_layout)
+        map_cols = len(self.current_map_layout[0])
+
+        # Calculate tile size based on the screen dimensions
+        tile_size_h = SCREEN_HEIGHT // map_rows
+        tile_size_w = SCREEN_WIDTH // map_cols
+        self.tile_size = min(tile_size_h, tile_size_w)
+
+        # Calculate offsets to center the map
+        map_width = self.tile_size * map_cols
+        map_height = self.tile_size * map_rows
+        self.map_offset_x = (SCREEN_WIDTH - map_width) // 2
+        self.map_offset_y = (SCREEN_HEIGHT - map_height) // 2
+
         self.tank_size = int(self.tile_size * 0.8)
         self._create_map()
 
@@ -108,7 +124,9 @@ class GameSimulator:
                     # Check if it's not too close to a wall
                     is_open = all(self.current_map_layout[r+dr][c+dc] == ' ' for dr in [-1,0,1] for dc in [-1,0,1] if 0 <= r+dr < len(self.current_map_layout) and 0 <= c+dc < len(row))
                     if is_open:
-                        empty_tiles.append(((c + 0.5) * self.tile_size, (r + 0.5) * self.tile_size))
+                        x = self.map_offset_x + (c + 0.5) * self.tile_size
+                        y = self.map_offset_y + (r + 0.5) * self.tile_size
+                        empty_tiles.append((x, y))
 
         if empty_tiles:
             pos = random.choice(empty_tiles)
@@ -128,7 +146,9 @@ class GameSimulator:
         for row_idx, row in enumerate(self.current_map_layout):
             for col_idx, tile in enumerate(row):
                 if tile == '#':
-                    wall = Wall(col_idx * self.tile_size, row_idx * self.tile_size, self.tile_size)
+                    x = self.map_offset_x + col_idx * self.tile_size
+                    y = self.map_offset_y + row_idx * self.tile_size
+                    wall = Wall(x, y, self.tile_size)
                     self.all_sprites.add(wall)
                     self.walls.add(wall)
 
@@ -139,7 +159,9 @@ class GameSimulator:
                 if tile == ' ' and r > 0 and c > 0 and r < len(self.current_map_layout)-1 and c < len(self.current_map_layout[0])-1:
                     is_open = all(self.current_map_layout[r+dr][c+dc] == ' ' for dr in [-1,0,1] for dc in [-1,0,1])
                     if is_open:
-                        points.append(((c + 0.5) * self.tile_size, (r + 0.5) * self.tile_size))
+                        x = self.map_offset_x + (c + 0.5) * self.tile_size
+                        y = self.map_offset_y + (r + 0.5) * self.tile_size
+                        points.append((x, y))
         if len(points) < 4:
             # Fallback for small maps
             return [(100, 100), (100, SCREEN_HEIGHT - 100), (SCREEN_WIDTH - 100, 100), (SCREEN_WIDTH - 100, SCREEN_HEIGHT - 100)]
