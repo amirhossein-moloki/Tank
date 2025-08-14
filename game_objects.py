@@ -11,11 +11,26 @@ class Tank(pygame.sprite.Sprite):
         self.color = color
 
         self.image_orig = pygame.Surface((tank_size, tank_size), pygame.SRCALPHA)
-        pygame.draw.rect(self.image_orig, self.color, self.image_orig.get_rect())
-        # Add a "barrel" to see direction
-        barrel = pygame.Surface((tank_size // 2, tank_size // 4))
-        barrel.fill(COLOR_WALL)
-        self.image_orig.blit(barrel, (tank_size // 2, tank_size // 2 - tank_size // 8))
+
+        # Main body
+        body_rect = pygame.Rect(0, 0, tank_size, tank_size)
+        pygame.draw.rect(self.image_orig, self.color, body_rect, border_radius=3)
+
+        # Turret
+        turret_size = tank_size * 0.7
+        turret_pos = (tank_size - turret_size) / 2
+        turret_rect = pygame.Rect(turret_pos, turret_pos, turret_size, turret_size)
+        darker_color = (max(0, self.color[0]-50), max(0, self.color[1]-50), max(0, self.color[2]-50))
+        pygame.draw.rect(self.image_orig, darker_color, turret_rect, border_radius=3)
+
+        # Barrel
+        barrel_width = tank_size * 0.6
+        barrel_height = tank_size * 0.15
+        barrel_pos_x = tank_size * 0.5
+        barrel_pos_y = (tank_size - barrel_height) / 2
+        barrel_rect = pygame.Rect(barrel_pos_x, barrel_pos_y, barrel_width, barrel_height)
+        pygame.draw.rect(self.image_orig, COLOR_WALL, barrel_rect)
+
 
         self.image = self.image_orig
         self.rect = self.image.get_rect(center=pos)
@@ -95,11 +110,12 @@ class Bullet(pygame.sprite.Sprite):
     def __init__(self, pos, angle, owner):
         super().__init__()
         self.owner = owner
-        self.image = pygame.Surface((BULLET_SIZE, BULLET_SIZE))
-        self.image.fill(COLOR_BULLET)
+        self.image = pygame.Surface((BULLET_SIZE * 2, BULLET_SIZE * 2), pygame.SRCALPHA)
+        pygame.draw.circle(self.image, COLOR_BULLET, (BULLET_SIZE, BULLET_SIZE), BULLET_SIZE)
         self.rect = self.image.get_rect(center=pos)
         self.pos = pygame.math.Vector2(pos)
         self.velocity = pygame.math.Vector2(1, 0).rotate(-angle) * BULLET_SPEED
+        self.ricochets = 0
 
     def update(self, walls, screen_rect):
         self.pos += self.velocity
@@ -117,17 +133,9 @@ class Wall(pygame.sprite.Sprite):
     def __init__(self, x, y, tile_size):
         super().__init__()
         self.tile_size = tile_size
-        self.health = WALL_HEALTH
         self.image = pygame.Surface((self.tile_size, self.tile_size))
-        self.image.fill(WALL_DAMAGE_COLORS[self.health])
+        self.image.fill(COLOR_WALL)
         self.rect = self.image.get_rect(topleft=(x, y))
-
-    def hit(self):
-        self.health -= 1
-        if self.health <= 0:
-            self.kill()
-        else:
-            self.image.fill(WALL_DAMAGE_COLORS[self.health])
 
 class PowerUp(pygame.sprite.Sprite):
     def __init__(self, pos, size):

@@ -60,6 +60,7 @@ class GameSimulator:
         self.episode_count = 0
         self.next_powerup_spawn_time = 0
 
+        self._create_buttons()
         self._create_sounds()
 
     def _create_sounds(self):
@@ -204,10 +205,57 @@ class GameSimulator:
 
         return torch.tensor([state_list], dtype=torch.float32, device=device)
 
+    def _create_buttons(self):
+        self.buttons = {}
+        button_font = pygame.font.SysFont(None, 30)
+        button_w, button_h = 120, 40
+        margin = 10
+
+        # Positions for buttons at the bottom center
+        total_width = (button_w + margin) * 4 - margin
+        start_x = (SCREEN_WIDTH - total_width) / 2
+
+        button_labels = ["Pause", "Save", "Restart", "Quit"]
+        for i, label in enumerate(button_labels):
+            x = start_x + i * (button_w + margin)
+            y = SCREEN_HEIGHT - button_h - margin
+            self.buttons[label] = {
+                "rect": pygame.Rect(x, y, button_w, button_h),
+                "text": button_font.render(label, True, COLOR_TEXT),
+                "label": label
+            }
+
+    def _draw_buttons(self):
+        for label, button in self.buttons.items():
+            # Special case for Pause/Resume button text
+            if label == "Pause":
+                text_label = "Resume" if self.paused else "Pause"
+                button["text"] = self.font.render(text_label, True, COLOR_TEXT)
+
+            pygame.draw.rect(self.screen, COLOR_WALL, button["rect"], border_radius=5)
+            text_rect = button["text"].get_rect(center=button["rect"].center)
+            self.screen.blit(button["text"], text_rect)
+
     def _handle_events(self):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.running = False
+
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if event.button == 1: # Left mouse button
+                    for label, button in self.buttons.items():
+                        if button["rect"].collidepoint(event.pos):
+                            if label == "Pause":
+                                self.paused = not self.paused
+                            elif label == "Save":
+                                for i, agent in self.agents.items():
+                                    agent.save_model(f"agent{i}_dqn.pth")
+                                print("All models saved!")
+                            elif label == "Restart":
+                                self.reset_round()
+                            elif label == "Quit":
+                                self.running = False
+
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     self.running = False
@@ -322,12 +370,32 @@ class GameSimulator:
         return eliminated_tanks
 
     def _check_bullet_wall_collisions(self):
-        collided_walls = pygame.sprite.groupcollide(self.bullets, self.walls, True, False)
-        if collided_walls:
-            self._play_sound('wall_hit')
+        # We don't kill the bullet on collision anymore, we handle it manually
+        collided_walls = pygame.sprite.groupcollide(self.bullets, self.walls, False, False)
+
         for bullet, walls_hit in collided_walls.items():
-            for wall in walls_hit:
-                wall.hit()
+            self._play_sound('wall_hit')
+            bullet.ricochets += 1
+
+            if bullet.ricochets >= 3:
+                bullet.kill()
+                continue # Move to the next bullet
+
+            # Simple bounce logic
+            wall = walls_hit[0] # Assume collision with one wall at a time for simplicity
+
+            # To prevent getting stuck, move bullet back
+            bullet.pos -= bullet.velocity
+            bullet.rect.center = bullet.pos
+
+            # Determine bounce direction
+            dx = abs(bullet.rect.centerx - wall.rect.centerx)
+            dy = abs(bullet.rect.centery - wall.rect.centery)
+
+            if dx > wall.rect.width / 2: # Horizontal collision
+                bullet.velocity.x *= -1
+            if dy > wall.rect.height / 2: # Vertical collision
+                bullet.velocity.y *= -1
 
     def _process_n_step_buffer(self, agent, buffer, state, action, reward, done):
         experience = (state, action, reward, done)
@@ -395,4 +463,5 @@ class GameSimulator:
             pause_text = self.font.render("PAUSED", True, COLOR_TEXT)
             self.screen.blit(pause_text, (SCREEN_WIDTH // 2 - pause_text.get_width() // 2, SCREEN_HEIGHT // 2 - pause_text.get_height() // 2))
 
+        self._draw_buttons()
         pygame.display.flip()

@@ -6,14 +6,14 @@ SCREEN_HEIGHT = 720
 FPS = 60
 
 # --- Color Palette ---
-COLOR_BACKGROUND = (40, 40, 40)
-COLOR_WALL = (150, 150, 150)
-COLOR_TANK_1 = (50, 150, 255)  # Team A - Dark Blue
-COLOR_TANK_2 = (255, 50, 50)   # Team B - Dark Red
-COLOR_TANK_3 = (80, 180, 255)  # Team A - Light Blue
-COLOR_TANK_4 = (255, 80, 80)   # Team B - Light Red
-COLOR_BULLET = (255, 255, 0)   # Yellow
-COLOR_TEXT = (255, 255, 255)
+COLOR_BACKGROUND = (10, 20, 30)
+COLOR_WALL = (0, 200, 200)
+COLOR_TANK_1 = (255, 0, 255)   # Team A - Magenta
+COLOR_TANK_2 = (255, 165, 0)  # Team B - Orange
+COLOR_TANK_3 = (200, 0, 200)   # Team A - Darker Magenta
+COLOR_TANK_4 = (255, 200, 0)   # Team B - Lighter Orange
+COLOR_BULLET = (50, 255, 50)   # Electric Green
+COLOR_TEXT = (230, 230, 230)
 
 # --- Game Map ---
 # Map layouts are now in maps.py
@@ -62,11 +62,3 @@ POWERUP_DURATION = 5000 # 5 seconds effect duration for speed and rapid fire
 
 # --- N-step Learning Parameters ---
 N_STEP_RETURN = 3
-
-# --- Wall Parameters ---
-WALL_HEALTH = 3
-WALL_DAMAGE_COLORS = {
-    3: (150, 150, 150), # Full health
-    2: (120, 120, 120), # Damaged
-    1: (90, 90, 90),   # Heavily damaged
-}
