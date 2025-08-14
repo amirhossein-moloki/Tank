@@ -62,6 +62,7 @@ class GameSimulator:
         self.score = {'A': 0, 'B': 0}
         self.episode_count = 0
         self.next_powerup_spawn_time = 0
+        self.game_speed = 1.0
 
         self._create_buttons()
         self._create_sounds()
@@ -231,14 +232,14 @@ class GameSimulator:
     def _create_buttons(self):
         self.buttons = {}
         button_font = pygame.font.SysFont(None, 30)
-        button_w, button_h = 120, 40
+        button_w, button_h = 100, 40
         margin = 10
 
         # Positions for buttons at the bottom center
-        total_width = (button_w + margin) * 5 - margin
+        button_labels = ["Speed -", "Speed +", "Pause", "Mute", "Save", "Restart", "Quit"]
+        total_width = (button_w + margin) * len(button_labels) - margin
         start_x = (SCREEN_WIDTH - total_width) / 2
 
-        button_labels = ["Pause", "Mute", "Save", "Restart", "Quit"]
         for i, label in enumerate(button_labels):
             x = start_x + i * (button_w + margin)
             y = SCREEN_HEIGHT - button_h - margin
@@ -283,12 +284,20 @@ class GameSimulator:
                                 self.reset_round()
                             elif label == "Quit":
                                 self.running = False
+                            elif label == "Speed +":
+                                self.game_speed = min(10.0, self.game_speed + 1.0)
+                            elif label == "Speed -":
+                                self.game_speed = max(1.0, self.game_speed - 1.0)
 
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     self.running = False
                 if event.key == pygame.K_p:
                     self.paused = not self.paused
+                if event.key == pygame.K_PLUS or event.key == pygame.K_EQUALS:
+                    self.game_speed = min(10.0, self.game_speed + 1.0)
+                if event.key == pygame.K_MINUS:
+                    self.game_speed = max(1.0, self.game_speed - 1.0)
                 if event.key == pygame.K_s:
                     for i, agent in self.agents.items():
                         agent.save_model(f"agent{i}_dqn.pth")
@@ -303,7 +312,7 @@ class GameSimulator:
 
     def run(self):
         while self.running:
-            self.clock.tick(FPS)
+            self.clock.tick(FPS * self.game_speed)
             self._handle_events()
             if self.paused:
                 self._draw()
@@ -362,6 +371,12 @@ class GameSimulator:
             if done:
                 self.reset_round()
                 self.episode_count += 1
+
+                # Save models after each match
+                for i, agent in self.agents.items():
+                    agent.save_model(f"agent{i}_dqn.pth")
+                print(f"Models saved after round {self.episode_count - 1}.")
+
                 if self.episode_count % TARGET_UPDATE_FREQ == 0:
                     for agent in self.agents.values():
                         agent.target_net.load_state_dict(agent.policy_net.state_dict())
@@ -486,6 +501,9 @@ class GameSimulator:
         score_b_text = self.font.render(f"Team Red Score: {self.score['B']}", True, COLOR_TANK_2)
         self.screen.blit(score_a_text, (10, 10))
         self.screen.blit(score_b_text, (SCREEN_WIDTH - score_b_text.get_width() - 10, 10))
+
+        speed_text = self.font.render(f"Speed: {int(self.game_speed)}x", True, COLOR_TEXT)
+        self.screen.blit(speed_text, (SCREEN_WIDTH // 2 - speed_text.get_width() // 2, 10))
 
         if self.paused:
             pause_text = self.font.render("PAUSED", True, COLOR_TEXT)
