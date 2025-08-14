@@ -18,6 +18,7 @@ class GameSimulator:
         self.font = pygame.font.SysFont(None, 36)
         self.running = True
         self.paused = False
+        self.muted = False
 
         self.all_sprites = pygame.sprite.Group()
         self.walls = pygame.sprite.Group()
@@ -92,7 +93,7 @@ class GameSimulator:
         self.sounds['wall_hit'] = generate_beep(330, 75) # E4 note, very short
 
     def _play_sound(self, name):
-        if self.sounds.get(name):
+        if not self.muted and self.sounds.get(name):
             self.sounds[name].play()
 
     def select_new_map(self):
@@ -234,10 +235,10 @@ class GameSimulator:
         margin = 10
 
         # Positions for buttons at the bottom center
-        total_width = (button_w + margin) * 4 - margin
+        total_width = (button_w + margin) * 5 - margin
         start_x = (SCREEN_WIDTH - total_width) / 2
 
-        button_labels = ["Pause", "Save", "Restart", "Quit"]
+        button_labels = ["Pause", "Mute", "Save", "Restart", "Quit"]
         for i, label in enumerate(button_labels):
             x = start_x + i * (button_w + margin)
             y = SCREEN_HEIGHT - button_h - margin
@@ -252,6 +253,9 @@ class GameSimulator:
             # Special case for Pause/Resume button text
             if label == "Pause":
                 text_label = "Resume" if self.paused else "Pause"
+                button["text"] = self.font.render(text_label, True, COLOR_TEXT)
+            elif label == "Mute":
+                text_label = "Unmute" if self.muted else "Mute"
                 button["text"] = self.font.render(text_label, True, COLOR_TEXT)
 
             pygame.draw.rect(self.screen, COLOR_WALL, button["rect"], border_radius=5)
@@ -269,6 +273,8 @@ class GameSimulator:
                         if button["rect"].collidepoint(event.pos):
                             if label == "Pause":
                                 self.paused = not self.paused
+                            elif label == "Mute":
+                                self.muted = not self.muted
                             elif label == "Save":
                                 for i, agent in self.agents.items():
                                     agent.save_model(f"agent{i}_dqn.pth")
