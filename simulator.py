@@ -10,7 +10,7 @@ from constants import (
     TARGET_UPDATE_FREQ,
     REWARD_WIN, REWARD_LOSE, REWARD_SUCCESSFUL_HIT, REWARD_TEAM_ASSIST,
     REWARD_HIT_SHIELD, REWARD_POWERUP_PICKUP, PENALTY_WALL_HIT,
-    PENALTY_SHOT_FIRED, PENALTY_SURVIVAL
+    PENALTY_SHOT_FIRED, PENALTY_SURVIVAL, PENALTY_MISSED_SHOT
 )
 from game_objects import Tank, Wall, PowerUp
 from ai_components import DQNAgent, device
@@ -339,13 +339,12 @@ class GameSimulator:
                 shot, wall_hit = self.tanks_dict[i].update(action.item(), self.walls)
                 if shot:
                     self._play_sound('shoot')
-                    rewards[i] += PENALTY_SHOT_FIRED # Apply penalty for shooting
                 if wall_hit:
                     rewards[i] += PENALTY_WALL_HIT # Apply penalty for hitting a wall
 
-            self.bullets.update(self.walls, self.screen.get_rect())
+            self.bullets.update(self.walls, self.screen.get_rect(), rewards)
             self._check_powerup_collisions(rewards)
-            self._check_bullet_wall_collisions()
+            self._check_bullet_wall_collisions(rewards)
 
             # 4. Check for eliminations and team-based win conditions
             eliminated_tanks = self._check_tank_eliminations(rewards)
@@ -432,7 +431,7 @@ class GameSimulator:
                             rewards[teammates[0].agent_id] += REWARD_TEAM_ASSIST
         return eliminated_tanks
 
-    def _check_bullet_wall_collisions(self):
+    def _check_bullet_wall_collisions(self, rewards):
         # We don't kill the bullet on collision anymore, we handle it manually
         collided_walls = pygame.sprite.groupcollide(self.bullets, self.walls, False, False)
 
@@ -441,6 +440,7 @@ class GameSimulator:
             bullet.ricochets += 1
 
             if bullet.ricochets >= 3:
+                rewards[bullet.owner.agent_id] += PENALTY_MISSED_SHOT
                 bullet.kill()
                 continue # Move to the next bullet
 

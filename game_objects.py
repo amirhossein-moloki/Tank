@@ -1,5 +1,6 @@
 import pygame
 from constants import *
+from constants import PENALTY_MISSED_SHOT
 
 class Tank(pygame.sprite.Sprite):
     def __init__(self, pos, color, agent_id, team, all_sprites, bullets_group, tank_size):
@@ -117,14 +118,15 @@ class Bullet(pygame.sprite.Sprite):
         self.velocity = pygame.math.Vector2(1, 0).rotate(-angle) * BULLET_SPEED
         self.ricochets = 0
 
-    def update(self, walls, screen_rect):
+    def update(self, walls, screen_rect, rewards):
         self.pos += self.velocity
         self.rect.center = self.pos
 
         # Ricochet logic is removed. Collision is now handled in the simulator.
         # Kill bullet if it goes way off-screen
         if not screen_rect.colliderect(self.rect):
-             self.kill()
+            rewards[self.owner.agent_id] += PENALTY_MISSED_SHOT
+            self.kill()
 
     def draw(self, surface):
         surface.blit(self.image, self.rect)

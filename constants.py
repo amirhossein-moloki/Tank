@@ -65,11 +65,12 @@ N_STEP_RETURN = 3
 
 # --- Reward Engineering Constants ---
 REWARD_WIN = 500
-REWARD_LOSE = -500
-REWARD_SUCCESSFUL_HIT = 15      # Reward for a successful hit on an enemy
+REWARD_LOSE = -600              # Increased penalty for losing
+REWARD_SUCCESSFUL_HIT = 100     # Increased reward for a successful hit
 REWARD_TEAM_ASSIST = 7          # Reward for assisting a teammate in a successful hit
 REWARD_HIT_SHIELD = 5           # Reward for hitting an enemy's shield
 REWARD_POWERUP_PICKUP = 10      # Reward for picking up a power-up
 PENALTY_WALL_HIT = -2           # Penalty for hitting a wall
-PENALTY_SHOT_FIRED = -1         # Penalty for each shot fired (successful or not)
+PENALTY_SHOT_FIRED = 0          # No penalty for firing, penalty is now on miss
+PENALTY_MISSED_SHOT = -2        # Penalty for a bullet that hits a wall or goes off-screen
 PENALTY_SURVIVAL = -0.01        # Penalty for surviving (to encourage faster play)
