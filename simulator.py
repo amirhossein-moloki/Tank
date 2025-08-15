@@ -3,7 +3,15 @@ import torch
 import random
 import numpy as np
 from collections import deque
-from constants import *
+from constants import (
+    SCREEN_WIDTH, SCREEN_HEIGHT, FPS, COLOR_BACKGROUND, COLOR_WALL,
+    COLOR_TANK_1, COLOR_TANK_2, COLOR_TANK_3, COLOR_TANK_4,
+    COLOR_TEXT, BULLET_SPEED, STATE_SIZE, ACTION_SIZE, N_STEP_RETURN, GAMMA,
+    TARGET_UPDATE_FREQ,
+    REWARD_WIN, REWARD_LOSE, REWARD_SUCCESSFUL_HIT, REWARD_TEAM_ASSIST,
+    REWARD_HIT_SHIELD, REWARD_POWERUP_PICKUP, PENALTY_WALL_HIT,
+    PENALTY_SHOT_FIRED, PENALTY_SURVIVAL
+)
 from game_objects import Tank, Wall, PowerUp
 from ai_components import DQNAgent, device
 from maps import ALL_MAPS
@@ -326,18 +334,21 @@ class GameSimulator:
             actions = {i: self.agents[i].select_action(states[i]) for i in states}
 
             # 3. Execute actions and calculate immediate rewards
-            rewards = {i: -0.01 for i in self.agents} # Survival penalty
+            rewards = {i: PENALTY_SURVIVAL for i in self.agents} # Survival penalty
             for i, action in actions.items():
                 shot, wall_hit = self.tanks_dict[i].update(action.item(), self.walls)
-                if shot: self._play_sound('shoot')
-                if wall_hit: rewards[i] -= 1
+                if shot:
+                    self._play_sound('shoot')
+                    rewards[i] += PENALTY_SHOT_FIRED # Apply penalty for shooting
+                if wall_hit:
+                    rewards[i] += PENALTY_WALL_HIT # Apply penalty for hitting a wall
 
             self.bullets.update(self.walls, self.screen.get_rect())
-            self._check_powerup_collisions()
+            self._check_powerup_collisions(rewards)
             self._check_bullet_wall_collisions()
 
             # 4. Check for eliminations and team-based win conditions
-            eliminated_tanks = self._check_tank_eliminations()
+            eliminated_tanks = self._check_tank_eliminations(rewards)
 
             done = False
             if eliminated_tanks:
@@ -353,8 +364,8 @@ class GameSimulator:
 
                     # Assign team-based rewards
                     for tank in self.tanks_dict.values():
-                        if tank.team == winner_team: rewards[tank.agent_id] += 500
-                        else: rewards[tank.agent_id] -= 500
+                        if tank.team == winner_team: rewards[tank.agent_id] += REWARD_WIN
+                        else: rewards[tank.agent_id] += REWARD_LOSE
 
             # 5. Store experiences in N-step buffers
             next_states = {i: self._get_state(tank) if tank.alive() else None for i, tank in self.tanks_dict.items()}
@@ -385,7 +396,7 @@ class GameSimulator:
             self._draw()
         pygame.quit()
 
-    def _check_powerup_collisions(self):
+    def _check_powerup_collisions(self, rewards):
         collided_powerups = pygame.sprite.groupcollide(self.tanks, self.powerups, False, True)
         for tank, powerups in collided_powerups.items():
             for powerup in powerups:
@@ -393,8 +404,9 @@ class GameSimulator:
                 self._play_sound('powerup')
                 if powerup.type == 'shield': self._play_sound('shield_up')
                 print(f"Tank {tank.agent_id} collected a {powerup.type} power-up!")
+                rewards[tank.agent_id] += REWARD_POWERUP_PICKUP
 
-    def _check_tank_eliminations(self):
+    def _check_tank_eliminations(self, rewards):
         eliminated_tanks = []
         for bullet in self.bullets:
             # We use a copy of the tanks group because a tank might be killed, which modifies the group
@@ -403,13 +415,21 @@ class GameSimulator:
                 # Check for friendly fire
                 if bullet.owner.team != tank.team:
                     bullet.kill()
+                    attacker = bullet.owner
                     if tank.shield_active:
                         tank.shield_active = False
                         self._play_sound('shield_hit')
                         print(f"Tank {tank.agent_id}'s shield absorbed a hit!")
+                        rewards[attacker.agent_id] += REWARD_HIT_SHIELD
                     else:
                         tank.kill() # Remove tank from all sprite groups
                         eliminated_tanks.append(tank)
+                        rewards[attacker.agent_id] += REWARD_SUCCESSFUL_HIT
+                        # Find the teammate and give them an assist reward
+                        teammates = [t for t in self.tanks if t.team == attacker.team and t != attacker]
+                        if teammates:
+                            # Assuming only one other teammate
+                            rewards[teammates[0].agent_id] += REWARD_TEAM_ASSIST
         return eliminated_tanks
 
     def _check_bullet_wall_collisions(self):
